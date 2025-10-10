@@ -45,9 +45,9 @@ function draw() {
   textFont('Courier New');
   textSize(24);
 
-// Mostra le linee già completate
+  // Mostra le linee già completate
   for (let i = 0; i < displayedLines.length; i++) {
-    text(displayedLines[i], 50, 120 + i * 30);
+    text(displayedLines[i], chartX, 120 + i * 30);
   }
   
   // Se ci sono ancora linee da scrivere
@@ -57,7 +57,7 @@ function draw() {
     
     // Mostra la linea corrente in scrittura
     // Posizionala dopo l'ultima riga completata
-    text(visible, 50, 120 + displayedLines.length * 30);
+    text(visible, chartX, 120 + displayedLines.length * 30);
     
     // Animazione della scrittura
     if (frameCount % typingSpeed === 0) {
@@ -72,33 +72,11 @@ function draw() {
     } 
   } else {
     // tutte le righe completate → mostra grafico
-    drawGraph();
+    updateBarAnimations();
+    drawBarChart();
   }
 
   pop();
-}
-
-function drawGraph() {
-  let values = [23.5, 45.2, 12.8];
-  let labels = ["Media C0", "Media C4", "Dev.Std C4"];
-
-  let graphStart = 100;
-  let spacing = 150;
-
-  for (let i = 0; i < values.length; i++) {
-    let x = graphStart + i * spacing;
-    let targetHeight = map(values[i], 0, 50, 0, 200);
-    let grow = constrain((frameCount - 400) / 60, 0, 1);
-    let currentHeight = lerp(0, targetHeight, grow);
-
-    fill("black");
-    //noStroke();  
-    rect(x, height - currentHeight - 100, 50, currentHeight, 10);
-
-    fill("black");
-    textAlign(CENTER);
-    text(labels[i], x + 25, height - 60);
-  }
 }
 
 //Crea un array con i testi che vanno scritti
@@ -109,6 +87,9 @@ function createArrayOfText(){
   lines.push(nf(mean4, 1, 2))
   lines.push("Colonna 4 - Deviazione Std.")
   lines.push(nf(std4, 1, 2))
+  lines.push(" ")
+  lines.push(" ")
+  lines.push("Statistiche")
 }
 
 //Faccio le medie, deviazioni, mediane e mode degli array
@@ -150,35 +131,6 @@ function pushArraysFromTable(rowNo){
   return rowToKeep;
 }
 
-function writeText(xFirstText){
-  push();
-  textSize(15);
-  fill("white");
-  noStroke();
-  text("Colonna 0 - Media", xFirstText,70);
-  text("Colonna 4 - Media", xFirstText,210);
-  text("Colonna 4 - Deviazione Std.", xFirstText,350);
-  pop();
-}
-
-function writeNumber(sizeFirstNo)
-{
-  push();
-  //textAlign(CENTER, CENTER);
-  textSize(sizeFirstNo);
-  textStyle(BOLD);
-  fill(0, 0); // testo trasparente
-  // Effetto "bordo sfumato"
-  drawingContext.shadowBlur = 25;
-  drawingContext.shadowColor = color("#ffffff"); // colore e trasparenza del bordo
-  stroke("#b7b7b7ff"); // contorno
-  strokeWeight(3);
-  text(nf(mean0, 1, 2), 50, 150);
-  text(nf(mean4, 1, 2), 50, 290);
-  text(nf(std4, 1, 2), 50, 430);
-  pop();
-}
-
 // --- Funzioni statistiche ---
 
 //Media
@@ -209,4 +161,100 @@ function median(arr) {
   let mid = floor(arr.length / 2);
   if (arr.length % 2 === 0) return (arr[mid - 1] + arr[mid]) / 2;
   else return arr[mid];
+}
+
+
+
+
+
+
+
+//Funzioni per disegnare il grafico
+function updateBarAnimations() {
+  // Animazione smooth verso i valori target
+  animatedStd1 = lerp(animatedStd1, std1, animationSpeed);
+  animatedMode2 = lerp(animatedMode2, mode2, animationSpeed);
+  animatedMedian3 = lerp(animatedMedian3, median3, animationSpeed);
+}
+
+// Variabili per l'animazione
+let animatedStd1 = 0;
+let animatedMode2 = 0;
+let animatedMedian3 = 0;
+let animationSpeed = 0.1; // Velocità animazione (0-1)
+
+// Configurazione del grafico
+let chartX = 100;
+let chartY = 540;
+let chartWidth = 400;
+let chartHeight = 200;
+let barWidth = 80;
+let maxValue = 100;
+
+function drawBarChart() {  
+  // Calcola le posizioni delle barre
+  let bar1X = chartX + 50;
+  let bar2X = chartX + 150;
+  let bar3X = chartX + 250;
+  
+  // Array dei dati ANIMATI
+  let data = [
+    { 
+      value: animatedStd1, 
+      target: nf(std1,1,2),
+      x: bar1X, 
+      label: "Dev. Std.\nCol. 1", 
+      color: [255, 100, 100] 
+    },
+    { 
+      value: animatedMode2, 
+      target: mode2,
+      x: bar2X, 
+      label: "Moda\nCol. 2", 
+      color: [100, 255, 100] 
+    },
+    { 
+      value: animatedMedian3, 
+      target: median3,
+      x: bar3X, 
+      label: "Mediana\nCol. 3", 
+      color: [100, 100, 255] 
+    }
+  ];
+  
+  // Disegna le barre animate
+  for (let i = 0; i < data.length; i++) {
+    let bar = data[i];
+    let barHeight = map(abs(bar.value), 0, maxValue, 0, chartHeight);
+    
+    // Colore della barra
+    fill(bar.color[0], bar.color[1], bar.color[2], 150);
+    
+    // Disegna barra (direzione in base al segno)
+    if (bar.value >= 0) {
+      // Valori positivi - barra che sale
+      rect(bar.x, chartY - barHeight, barWidth, barHeight);
+    } else {
+      // Valori negativi - barra che scende
+      rect(bar.x, chartY, barWidth, barHeight);
+    }
+    
+    // Etichetta sotto alle barre
+    fill("black");
+    textSize(12);
+    text(bar.label, bar.x + 10, chartY + 60);
+    
+    // Valore corrente sopra/sotto la barra
+    if (bar.value >= 0) {
+      text(nf(bar.value, 1, 1), bar.x + 25, chartY - barHeight - 10);
+    } else {
+      text(nf(bar.value, 1, 1), bar.x + 25, chartY + barHeight + 15);
+    }
+    
+  }
+  
+  // Linea zero per valori negativi/positivi
+  stroke(150);
+  line(chartX, chartY, chartX + chartWidth, chartY);
+  noStroke();
 }
